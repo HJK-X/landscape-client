@@ -342,6 +342,7 @@ Diagram::
   14. Schedule exchange
 
 """
+
 import logging
 import time
 
@@ -812,6 +813,7 @@ class MessageExchange:
         @param payload: The payload that was sent to the server.
         @param result: The response got in reply to the C{payload}.
         """
+        logging.info("handle result in exchange called")
         message_store = self._message_store
         self._client_accepted_types_hash = result.get(
             "client-accepted-types-hash",
@@ -854,6 +856,10 @@ class MessageExchange:
             )
             self._reactor.fire("server-uuid-changed", old_uuid, new_uuid)
             message_store.set_server_uuid(new_uuid)
+        import logging
+
+        logging.info("set server uuid called from exchange handle result")
+        logging.info("server uuid: ", message_store.get_server_uuid())
 
         # Extract the server API from the payload. If it's not there it must
         # be 3.2, because it's the one that didn't have this field.

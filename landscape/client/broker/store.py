@@ -91,6 +91,7 @@ See L{MessageStore} for details about how messages are stored on the file
 system and L{landscape.lib.message.got_next_expected} to check how the
 strategy for updating the pending offset and the sequence is implemented.
 """
+
 import itertools
 import logging
 import os
@@ -222,6 +223,9 @@ class MessageStore:
 
     def set_server_uuid(self, uuid):
         """Change the known UUID from the server we're communicating to."""
+        import logging
+
+        logging.info("set server uuid called in message store")
         self._persist.set("server_uuid", uuid)
 
     def get_server_api(self):

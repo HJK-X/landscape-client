@@ -88,6 +88,7 @@ class PackageReporter(PackageTaskHandler):
 
     def run(self):
         self._got_task = False
+        logging.info("running reporter")
 
         result = Deferred()
         # Set us up to communicate properly
