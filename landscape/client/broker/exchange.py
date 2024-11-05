@@ -611,6 +611,7 @@ class MessageExchange:
                 if self._urgent_exchange:
                     logging.info("Switching to normal exchange mode.")
                     self._urgent_exchange = False
+                logging.info("should be calling _handle_result")
                 self._handle_result(payload, result)
                 self._message_store.record_success(int(self._reactor.time()))
                 self._backoff_counter.decrease()
@@ -789,6 +790,7 @@ class MessageExchange:
             "total-messages": total_messages,
             "next-expected-sequence": store.get_server_sequence(),
         }
+        logging.info("make payload called")
         accepted_client_types = self.get_client_accepted_message_types()
         accepted_client_types_hash = self._hash_types(accepted_client_types)
         if accepted_client_types_hash != self._client_accepted_types_hash:
