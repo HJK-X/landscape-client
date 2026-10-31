@@ -2110,6 +2110,53 @@ registration_key = shared-secret
         options.read(config_filename)
         self.assertEqual(options.get("client", "ssl_public_key"), key_filename)
 
+    @mock.patch("landscape.client.configuration.print_text")
+    @mock.patch("landscape.client.configuration.ServiceConfig")
+    def test_base64_ssl_ca_cert_is_exported_to_file(
+        self,
+        mock_serviceconfig,
+        mock_print_text,
+    ):
+        """
+        A base64 --ssl-ca-cert is exported to a file and its path is stored
+        in ssl_ca_cert, leaving the deprecated ssl_public_key untouched.
+        """
+        data_path = self.makeDir()
+        config_filename = self.makeFile(
+            f"[client]\ndata_path={data_path}\nssl_public_key = /some/old\n",
+        )
+        key_filename = os.path.join(
+            data_path,
+            os.path.basename(config_filename) + ".ssl_public_key",
+        )
+
+        config = self.get_config(
+            [
+                "--silent",
+                "-c",
+                config_filename,
+                "-u",
+                "url",
+                "-a",
+                "account",
+                "-t",
+                "title",
+                "--ssl-ca-cert",
+                "base64:SGkgdGhlcmUh",
+            ],
+        )
+        config.data_path = data_path
+        setup(config)
+
+        with open(key_filename) as fh:
+            self.assertEqual("Hi there!", fh.read())
+        self.assertEqual(config.ssl_ca_cert, key_filename)
+
+        options = ConfigParser()
+        options.read(config_filename)
+        self.assertEqual(options.get("client", "ssl_ca_cert"), key_filename)
+        self.assertEqual(options.get("client", "ssl_public_key"), "/some/old")
+
     @mock.patch("landscape.client.configuration.ServiceConfig")
     def test_normal_ssl_public_key_is_not_exported_to_file(
         self,

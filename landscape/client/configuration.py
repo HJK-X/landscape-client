@@ -676,13 +676,13 @@ def decode_base64_ssl_public_certificate(config):
     Decode base64 encoded SSL certificate and push that back into place in the
     config object.
     """
-    # WARNING: ssl_public_certificate is misnamed, it's not the key of the
-    # certificate, but the actual certificate itself.
-    if config.ssl_public_key and config.ssl_public_key.startswith("base64:"):
-        decoded_cert = base64.decodebytes(
-            config.ssl_public_key[7:].encode("ascii"),
-        )
-        config.ssl_public_key = store_public_key_data(config, decoded_cert)
+    # Update whichever option (ssl_ca_cert or the deprecated ssl_public_key)
+    # provides the certificate, so the precedence between them is preserved.
+    option = config.get_ssl_ca_cert_option()
+    value = getattr(config, option)
+    if value and value.startswith("base64:"):
+        decoded_cert = base64.decodebytes(value[7:].encode("ascii"))
+        setattr(config, option, store_public_key_data(config, decoded_cert))
 
 
 def setup(config) -> Identity:
@@ -763,7 +763,7 @@ def store_public_key_data(config, certificate_data):
     @param certificate_data: a string of data that represents the contents of
     the file to be written.
     @return the L{BrokerConfiguration} object that was passed in, updated to
-    reflect the path of the ssl_public_key file.
+    reflect the path of the SSL CA certificate file.
     """
     key_filename = os.path.join(
         config.data_path,
@@ -797,7 +797,7 @@ def attempt_registration(
             registration_info = register(
                 client_info,
                 config.url,
-                cainfo=config.ssl_public_key,
+                cainfo=config.ssl_ca_cert,
                 http_client=config.http_client,
             )
 
@@ -968,6 +968,7 @@ def main(args, print=print):  # noqa: C901
         config.quiet,
     )
     config.warn_out_of_bounds_intervals()
+    config.warn_deprecated_options()
 
     if config.skip_registration and config.force_registration:
         sys.exit(

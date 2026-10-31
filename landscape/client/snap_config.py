@@ -22,7 +22,7 @@ CONFIG_ENTRIES = [
     ("computer-title", "computer_title", None),
     ("url", "url", None),
     ("ping-url", "ping_url", None),
-    ("ssl-public-key", "ssl_public_key", update_ssl_cert),
+    ("ssl-public-key", "ssl_ca_cert", update_ssl_cert),
     ("log-level", "log_level", None),
     ("script-users", "script_users", None),
     ("manager-plugins", "manager_plugins", None),

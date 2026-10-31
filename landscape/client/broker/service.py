@@ -57,7 +57,7 @@ class BrokerService(LandscapeService):
         self.transport = self.transport_factory(
             self.reactor,
             config.url,
-            config.ssl_public_key,
+            config.ssl_ca_cert,
             http_client=config.http_client,
         )
         self.message_store = get_default_message_store(

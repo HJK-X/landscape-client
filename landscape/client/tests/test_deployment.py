@@ -340,6 +340,87 @@ class ConfigurationTest(LandscapeTest):
         options = self.parser.parse_args([])
         self.assertEqual(options.ssl_public_key, None)
 
+    def test_ssl_ca_cert_option(self):
+        """The CA certificate can be set with --ssl-ca-cert."""
+        self.config.load(
+            ["--ssl-ca-cert", "/some/ca.crt"],
+            accept_nonexistent_default_config=True,
+        )
+        self.assertEqual(self.config.ssl_ca_cert, "/some/ca.crt")
+        self.assertEqual(self.config.get_ssl_ca_cert_option(), "ssl_ca_cert")
+
+    def test_ssl_ca_cert_default(self):
+        """ssl_ca_cert is None when neither option is set."""
+        self.config.load([], accept_nonexistent_default_config=True)
+        self.assertIsNone(self.config.ssl_ca_cert)
+
+    def test_ssl_ca_cert_falls_back_to_deprecated_option(self):
+        """ssl_ca_cert falls back to the deprecated -k/--ssl-public-key."""
+        self.config.load(
+            ["-k", "/some/old.crt"],
+            accept_nonexistent_default_config=True,
+        )
+        self.assertEqual(self.config.ssl_ca_cert, "/some/old.crt")
+        self.assertEqual(
+            self.config.get_ssl_ca_cert_option(),
+            "ssl_public_key",
+        )
+
+    def test_ssl_ca_cert_falls_back_to_deprecated_config_key(self):
+        """ssl_ca_cert falls back to ssl_public_key in the config file."""
+        filename = self.makeFile("[client]\nssl_public_key = /some/old.crt\n")
+        self.config.load(["--config", filename])
+        self.assertEqual(self.config.ssl_ca_cert, "/some/old.crt")
+
+    def test_ssl_ca_cert_takes_precedence(self):
+        """
+        ssl_ca_cert wins over ssl_public_key, even if the deprecated option is
+        given on the command line and the new one in the config file.
+        """
+        filename = self.makeFile("[client]\nssl_ca_cert = /some/new.crt\n")
+        self.config.load(
+            ["--config", filename, "--ssl-public-key", "/some/old.crt"],
+        )
+        self.assertEqual(self.config.ssl_ca_cert, "/some/new.crt")
+        self.assertEqual(self.config.ssl_public_key, "/some/old.crt")
+
+    def test_warn_deprecated_ssl_public_key(self):
+        """A deprecation warning is logged when ssl_public_key is used."""
+        filename = self.makeFile("[client]\nssl_public_key = /some/old.crt\n")
+        self.config.load(["--config", filename])
+        self.config.warn_deprecated_options()
+        log = self.logfile.getvalue()
+        self.assertIn(
+            "The ssl_public_key option (-k/--ssl-public-key) is deprecated",
+            log,
+        )
+        self.assertIn("Use ssl_ca_cert (--ssl-ca-cert) instead.", log)
+        self.assertNotIn("Both ssl_ca_cert and ssl_public_key are set", log)
+
+    def test_warn_deprecated_ssl_public_key_ignored(self):
+        """A warning is logged when ssl_public_key is ignored."""
+        self.config.load(
+            ["--ssl-ca-cert", "/some/new.crt", "-k", "/some/old.crt"],
+            accept_nonexistent_default_config=True,
+        )
+        self.config.warn_deprecated_options()
+        log = self.logfile.getvalue()
+        self.assertIn("is deprecated", log)
+        self.assertIn(
+            "Both ssl_ca_cert and ssl_public_key are set. Using ssl_ca_cert "
+            "and ignoring ssl_public_key.",
+            log,
+        )
+
+    def test_no_deprecation_warning_for_ssl_ca_cert(self):
+        """Nothing is logged when only ssl_ca_cert is used."""
+        self.config.load(
+            ["--ssl-ca-cert", "/some/new.crt"],
+            accept_nonexistent_default_config=True,
+        )
+        self.config.warn_deprecated_options()
+        self.assertEqual(self.logfile.getvalue(), "")
+
     def test_ignore_sigint_option(self):
         """Ensure options.ignore_sigint option can be read by parse_args."""
         options = self.parser.parse_args(["--ignore-sigint"])

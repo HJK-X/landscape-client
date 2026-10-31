@@ -123,8 +123,13 @@ class Configuration(BaseConfiguration):
     def __getattr__(self, name):
         """Return the option value, clamped to its bounds for intervals.
 
+        C{ssl_ca_cert} falls back to the deprecated C{ssl_public_key} option
+        when it is not set.
+
         @see: L{INTERVAL_BOUNDS}
         """
+        if name == "ssl_ca_cert":
+            return super().__getattr__(self.get_ssl_ca_cert_option())
         value = super().__getattr__(name)
         bounds = INTERVAL_BOUNDS.get(name)
         if bounds is not None and value is not None:
@@ -152,6 +157,32 @@ class Configuration(BaseConfiguration):
                     f"{maximum}. Using {maximum} seconds instead.",
                 )
 
+    def get_ssl_ca_cert_option(self):
+        """Return the name of the option providing the SSL CA certificate.
+
+        C{ssl_ca_cert} takes precedence over the deprecated C{ssl_public_key},
+        regardless of where each one was set.
+        """
+        if not super().__getattr__("ssl_ca_cert"):
+            if super().__getattr__("ssl_public_key"):
+                return "ssl_public_key"
+        return "ssl_ca_cert"
+
+    def warn_deprecated_options(self):
+        """Log a warning for each deprecated option in use."""
+        if super().__getattr__("ssl_public_key") is None:
+            return
+        warning(
+            "The ssl_public_key option (-k/--ssl-public-key) is deprecated "
+            "and will be removed in a future release. Use ssl_ca_cert "
+            "(--ssl-ca-cert) instead.",
+        )
+        if super().__getattr__("ssl_ca_cert"):
+            warning(
+                "Both ssl_ca_cert and ssl_public_key are set. Using "
+                "ssl_ca_cert and ignoring ssl_public_key.",
+            )
+
     def interval_help(self, name, description, default):
         """Return help text for an interval option, including its bounds."""
         bounds = INTERVAL_BOUNDS[name]
@@ -170,7 +201,8 @@ class Configuration(BaseConfiguration):
               - C{log_level} (C{"info"})
               - C{url} (C{"http://landscape.canonical.com/message-system"})
               - C{ping_url} (C{"http://landscape.canonical.com/ping"})
-              - C{ssl_public_key}
+              - C{ssl_ca_cert}
+              - C{ssl_public_key} (deprecated alias of C{ssl_ca_cert})
               - C{ignore_sigint} (C{False})
               - C{stagger_launch} (C{0.1})
         """
@@ -188,10 +220,17 @@ class Configuration(BaseConfiguration):
             default="http://landscape.canonical.com/ping",
         )
         parser.add_argument(
+            "--ssl-ca-cert",
+            metavar="SSL_CA_CERT",
+            help="The CA certificate used to verify the server. "
+            "Only used if the given URL is https.",
+        )
+        parser.add_argument(
             "-k",
             "--ssl-public-key",
-            help="The ssl-public-key is a CA certificate that verifies the server."
-            "Only used if the given URL is https.",
+            metavar="SSL_PUBLIC_KEY",
+            help="DEPRECATED: use --ssl-ca-cert instead. "
+            "Ignored if --ssl-ca-cert is set.",
         )
         parser.add_argument(
             "--ignore-sigint",
